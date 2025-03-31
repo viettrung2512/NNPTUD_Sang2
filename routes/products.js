@@ -1,110 +1,69 @@
 var express = require('express');
 var router = express.Router();
-let productSchema = require('../schemas/product')
+let productSchema = require('../schemas/product');
+let categorySchema = require('../schemas/category');
+let { check_authentication, check_authorization } = require("../utils/check_auth");
 
-/* GET users listing. */
-router.get('/', async function(req, res, next) {
-  let products = await productSchema.find({})
-  res.status(200).send({
-    success:true,
-    data:products
-  });
+// GET: Không yêu cầu đăng nhập
+router.get('/', async function(req, res) {
+    let products = await productSchema.find({}).populate({ path: 'category', select: 'name' });
+    res.status(200).send({ success: true, data: products });
 });
-router.get('/:id', async function(req, res, next) {
-  try {
-    let id = req.params.id;
-    let product = await productSchema.findById(id)
-    res.status(200).send({
-      success:true,
-      data:product
-    });
-  } catch (error) {
-    res.status(404).send({
-      success:false,
-      message:error.message
-    });
-  }
-});
-router.post('/', async function(req, res, next) {
-  try {
-    let body = req.body;
-    let newProduct = new productSchema({
-      name:body.name,
-      price:body.price?body.price:0,
-      quantity:body.quantity?body.quantity:0,
-      category:body.category,
-    });
-    await newProduct.save()
-    res.status(200).send({
-      success:true,
-      data:newProduct
-    });
-  } catch (error) {
-    res.status(404).send({
-      success:false,
-      message:error.message
-    });
-  }
-});
-router.put('/:id', async function(req, res, next) {
-  try {
-    let id = req.params.id;
-    let product = await productSchema.findById(id);
-    if(product){
-      let body = req.body;
-      if(body.name){
-        product.name = body.name;
-      }
-      if(body.price){
-        product.price = body.price;
-      }
-      if(body.quantity){
-        product.quantity = body.quantity;
-      }
-      if(body.category){
-        product.category = body.category;
-      }
-      await product.save()
-      res.status(200).send({
-        success:true,
-        data:product
-      });
-    }else{
-      res.status(404).send({
-        success:false,
-        message:"ID khomng ton tai"
-      });
+
+// GET/:id: Không yêu cầu đăng nhập
+router.get('/:id', async function(req, res) {
+    try {
+        let product = await productSchema.findById(req.params.id);
+        res.status(200).send({ success: true, data: product });
+    } catch (error) {
+        res.status(404).send({ success: false, message: error.message });
     }
-  } catch (error) {
-    res.status(404).send({
-      success:false,
-      message:error.message
-    });
-  }
 });
-router.delete('/:id', async function(req, res, next) {
-  try {
-    let id = req.params.id;
-    let product = await productSchema.findById(id);
-    if(product){
-      product.isDeleted = true
-      await product.save()
-      res.status(200).send({
-        success:true,
-        data:product
-      });
-    }else{
-      res.status(404).send({
-        success:false,
-        message:"ID khomng ton tai"
-      });
+
+// POST: Chỉ mod trở lên mới có quyền tạo
+router.post('/', check_authentication, check_authorization(['mod']), async function(req, res) {
+    try {
+        let body = req.body;
+        let category = await categorySchema.findOne({ name: body.category });
+        if (!category) {
+            return res.status(404).send({ success: false, message: "Danh mục không tồn tại" });
+        }
+        let newProduct = new productSchema({ name: body.name, price: body.price || 0, quantity: body.quantity || 0, category: category._id });
+        await newProduct.save();
+        res.status(200).send({ success: true, data: newProduct });
+    } catch (error) {
+        res.status(404).send({ success: false, message: error.message });
     }
-  } catch (error) {
-    res.status(404).send({
-      success:false,
-      message:error.message
-    });
-  }
+});
+
+// PUT: Chỉ mod trở lên mới có quyền cập nhật
+router.put('/:id', check_authentication, check_authorization(['mod']), async function(req, res) {
+    try {
+        let product = await productSchema.findById(req.params.id);
+        if (!product) {
+            return res.status(404).send({ success: false, message: "ID không tồn tại" });
+        }
+        Object.assign(product, req.body);
+        await product.save();
+        res.status(200).send({ success: true, data: product });
+    } catch (error) {
+        res.status(404).send({ success: false, message: error.message });
+    }
+});
+
+// DELETE: Chỉ admin có quyền xóa
+router.delete('/:id', check_authentication, check_authorization(['admin']), async function(req, res) {
+    try {
+        let product = await productSchema.findById(req.params.id);
+        if (!product) {
+            return res.status(404).send({ success: false, message: "ID không tồn tại" });
+        }
+        product.isDeleted = true;
+        await product.save();
+        res.status(200).send({ success: true, data: product });
+    } catch (error) {
+        res.status(404).send({ success: false, message: error.message });
+    }
 });
 
 module.exports = router;
