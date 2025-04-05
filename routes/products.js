@@ -28,13 +28,19 @@ router.post('/', check_authentication, check_authorization(['mod']), async funct
         if (!category) {
             return res.status(404).send({ success: false, message: "Danh mục không tồn tại" });
         }
-        let newProduct = new productSchema({ name: body.name, price: body.price || 0, quantity: body.quantity || 0, category: category._id });
+        let newProduct = new productSchema({ 
+            name: body.name, 
+            price: body.price || 0, 
+            quantity: body.quantity || 0, 
+            category: category._id 
+        });
         await newProduct.save();
         res.status(200).send({ success: true, data: newProduct });
     } catch (error) {
-        res.status(404).send({ success: false, message: error.message });
+        res.status(400).send({ success: false, message: error.message });
     }
 });
+
 
 // PUT: Chỉ mod trở lên mới có quyền cập nhật
 router.put('/:id', check_authentication, check_authorization(['mod']), async function(req, res) {

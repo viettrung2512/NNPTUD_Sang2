@@ -9,6 +9,9 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var app = express();
+var menusRouter = require('./routes/menus');
+
+
 
 mongoose.connect('mongodb://localhost:27017/S2');
 mongoose.connection.on('connected',()=>{
@@ -32,6 +35,7 @@ app.use('/roles', require('./routes/roles'));
 app.use('/auth', require('./routes/auth'));
 app.use('/products', require('./routes/products'));
 app.use('/categories', require('./routes/categories'));
+app.use('/api/menus', menusRouter);
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
